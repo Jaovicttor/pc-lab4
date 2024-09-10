@@ -31,9 +31,20 @@ func sum(filePath string) (int, error) {
 	return _sum, nil
 }
 
-func sumWrapper(filePath string, sumChan chan int) {
-	fileSum, _ := sum(filePath)
-	sumChan <- fileSum
+func sumWrapper(filePath string, sumChan chan struct {
+	int
+	string
+}) {
+	fileSum, err := sum(filePath)
+
+	if err != nil {
+		fileSum = 0
+	}
+
+	sumChan <- struct {
+		int
+		string
+	}{fileSum, filePath}
 }
 
 // print the totalSum for all files and the files with equal sum
@@ -45,36 +56,27 @@ func main() {
 
 	var totalSum int64
 	size := len(os.Args[1:])
-	sumChannel := make(chan int, size)
-	// sums := make(map[int][]string)
+	sumChannel := make(chan struct {
+		int
+		string
+	}, size)
+	sums := make(map[int][]string)
 
 	for _, path := range os.Args[1:] {
 		go sumWrapper(path, sumChannel)
 	}
 
 	for i := 0; i < size; i++ {
-		sum := <-sumChannel
-		totalSum += int64(sum)
+		result := <-sumChannel
+		totalSum += int64(result.int)
+		sums[result.int] = append(sums[result.int], result.string)
 	}
 
 	fmt.Println(totalSum)
-	// for _, path := range os.Args[1:] {
-	// 	_sum, err := go sum(path)
 
-	// 	if err != nil {
-	// 		continue
-	// 	}
-
-	// 	totalSum += int64(_sum)
-
-	// 	sums[_sum] = append(sums[_sum], path)
-	// }
-
-	// fmt.Println(totalSum)
-
-	// for sum, files := range sums {
-	// 	if len(files) > 1 {
-	// 		fmt.Printf("Sum %d: %v\n", sum, files)
-	// 	}
-	// }
+	for sum, files := range sums {
+		if len(files) > 1 {
+			fmt.Printf("Sum %d: %v\n", sum, files)
+		}
+	}
 }
